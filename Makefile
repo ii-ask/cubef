@@ -9,9 +9,9 @@ MCA = /usr/bin/llvm-mca-8
 
 # Configurable parameters
 PROCEDURE ?= cubef.s:cubef
-ILIMIT ?= 50
-MAXSIZE ?= 256
-BADINSNS ?= '*mul*,*div*,*call*'
+ILIMIT ?= 80
+MAXSIZE ?= 512
+BADINSNS ?= '*cnt*,call*'
 
 MAXINSNS = $(ILIMIT)
 
@@ -36,16 +36,16 @@ main: main.o cubef.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 test-1: check
-	$(RUN) 0xFFFFFFFFFFFFFFFF
+	$(RUN) 0x40000000
 
 test-2: check
-	$(RUN) 0x0
+	$(RUN) 0xFF800000
 
 test-3: check
-	$(RUN) 0x10000
+	$(RUN) 0x2A938000
 
 test-4: check
-	$(RUN) 0x001F089ADF39FE00
+	$(RUN) 0x8888DEAD
 
 test-random: MAXINSNS=$(shell echo $$(($(ILIMIT)*1000))) 
 test-random: check

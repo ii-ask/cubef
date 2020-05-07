@@ -8,8 +8,12 @@
 #include <sys/time.h>
 
 #define __noinline __attribute__((noinline))
+#define   DBL(x) ((double)*(float*)&x)
 
-extern int cubef(uint64_t);
+#define MASK_EXP    0x7F800000
+#define SIGN        0x80000000
+
+extern uint32_t cubef(uint32_t);
 
 /* https://en.wikipedia.org/wiki/Xorshift#xorshift* */
 static uint64_t random_u64(uint64_t *seed) {
@@ -21,9 +25,13 @@ static uint64_t random_u64(uint64_t *seed) {
   return x * 0x2545F4914F6CDD1DUL;
 }
 
-/* Only for testing. Such solution would get 0 points. */
-static __noinline int32_t cubef_iter(int32_t x) {
-  return x;
+/* Only for testing. Such solution would get -100 points. */
+static __noinline uint32_t cubef_illegal(uint32_t x) {
+	float y = *(float*)&x;
+	long double d = y;
+	d = d * d * d;
+	y = d;
+	return *(uint32_t*)&y;
 }
 
 typedef union caller_regs {
@@ -49,12 +57,12 @@ typedef union caller_regs {
                : "r" (regs)                                                    \
                : "memory", "rbx", "r12", "r13", "r14", "r15", "rbp")
 
-static void run(uint64_t arg) {
-  int fast, slow;
+static void run(uint32_t arg) {
+  uint32_t user, correct;
 
   caller_regs_t before, after;
   save_caller_regs(&before);
-  fast = cubef(arg);
+  user = cubef(arg);
   save_caller_regs(&after);
 
   for (int i = 0; i < sizeof(caller_regs_t) / sizeof(uint64_t); i++) {
@@ -64,9 +72,10 @@ static void run(uint64_t arg) {
     }
   }
 
-  slow = cubef_iter(arg);
-  if (fast != slow) {
-    printf("cubef(0x%016lx) = %d (your answer: %d)\n", arg, slow, fast);
+  correct = cubef_illegal(arg);
+  if (user != correct) {
+    printf("cubef(%e [0x%08X]) = %e [0x%08X] (your answer: %e [0x%08X])\n", 
+		DBL(arg), arg, DBL(correct), correct, DBL(user), user);
     exit(EXIT_FAILURE);
   }
 }
@@ -93,8 +102,19 @@ int main(int argc, char *argv[]) {
 
     uint64_t seed = tv.tv_sec + tv.tv_usec * 1e6;
 
-    for (int i = 0; i < times; i++)
-      run(random_u64(&seed));
+    for (int i = 0; i < times; i++) {
+      uint64_t val;
+      uint32_t correct;
+      do
+      { 
+        val = random_u64(&seed);
+        if(random_u64(&seed) & 7)
+          val = val & 0xffff8000;
+        correct = cubef_illegal(val);
+      }
+      while((((correct | SIGN) != SIGN) && ((correct & MASK_EXP) == 0)) || (val & MASK_EXP) == MASK_EXP);
+      run(val);
+    }
 
     return EXIT_SUCCESS;
   }
