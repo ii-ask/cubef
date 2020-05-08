@@ -2,16 +2,25 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdnoreturn.h>
 #include <string.h>
 #include <sys/time.h>
 
 #define __noinline __attribute__((noinline))
-#define DBL(x) ((double)*(float *)&x)
+#define DBL(x) ((double)*((float *)&(x)))
 
 #define MASK_EXP 0x7F800000
 #define SIGN 0x80000000
+ 
+static bool infinity_p(uint32_t val) {
+  return (val & MASK_EXP) == MASK_EXP;
+}
+
+static bool denormalized_p(uint32_t val) {
+  return (val | SIGN) != SIGN && (val & MASK_EXP) == 0;
+}
 
 extern uint32_t cubef(uint32_t);
 
@@ -103,15 +112,15 @@ int main(int argc, char *argv[]) {
     uint64_t seed = tv.tv_sec + tv.tv_usec * 1e6;
 
     for (int i = 0; i < times; i++) {
-      uint64_t val;
-      uint32_t correct;
+      uint32_t val, res;
       do {
-        val = random_u64(&seed);
-        if (random_u64(&seed) & 7)
-          val = val & 0xffff8000;
-        correct = cubef_illegal(val);
-      } while ((((correct | SIGN) != SIGN) && ((correct & MASK_EXP) == 0)) ||
-               (val & MASK_EXP) == MASK_EXP);
+        do {
+          val = random_u64(&seed);
+          if (random_u64(&seed) & 7)
+            val &= 0xffff8000;
+        } while (infinity_p(val));
+        res = cubef_illegal(val);
+      } while (denormalized_p(res));
       run(val);
     }
 
