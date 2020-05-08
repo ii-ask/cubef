@@ -8,10 +8,10 @@
 #include <sys/time.h>
 
 #define __noinline __attribute__((noinline))
-#define   DBL(x) ((double)*(float*)&x)
+#define DBL(x) ((double)*(float *)&x)
 
-#define MASK_EXP    0x7F800000
-#define SIGN        0x80000000
+#define MASK_EXP 0x7F800000
+#define SIGN 0x80000000
 
 extern uint32_t cubef(uint32_t);
 
@@ -27,11 +27,11 @@ static uint64_t random_u64(uint64_t *seed) {
 
 /* Only for testing. Such solution would get -100 points. */
 static __noinline uint32_t cubef_illegal(uint32_t x) {
-	float y = *(float*)&x;
-	long double d = y;
-	d = d * d * d;
-	y = d;
-	return *(uint32_t*)&y;
+  float y = *(float *)&x;
+  long double d = y;
+  d = d * d * d;
+  y = d;
+  return *(uint32_t *)&y;
 }
 
 typedef union caller_regs {
@@ -54,7 +54,7 @@ typedef union caller_regs {
                "mov %%r15, 32(%0);"                                            \
                "mov %%rbp, 40(%0);"                                            \
                : /* no outputs */                                              \
-               : "r" (regs)                                                    \
+               : "r"(regs)                                                     \
                : "memory", "rbx", "r12", "r13", "r14", "r15", "rbp")
 
 static void run(uint32_t arg) {
@@ -74,8 +74,8 @@ static void run(uint32_t arg) {
 
   correct = cubef_illegal(arg);
   if (user != correct) {
-    printf("cubef(%e [0x%08X]) = %e [0x%08X] (your answer: %e [0x%08X])\n", 
-		DBL(arg), arg, DBL(correct), correct, DBL(user), user);
+    printf("cubef(%e [0x%08X]) = %e [0x%08X] (your answer: %e [0x%08X])\n",
+           DBL(arg), arg, DBL(correct), correct, DBL(user), user);
     exit(EXIT_FAILURE);
   }
 }
@@ -105,14 +105,13 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < times; i++) {
       uint64_t val;
       uint32_t correct;
-      do
-      { 
+      do {
         val = random_u64(&seed);
-        if(random_u64(&seed) & 7)
+        if (random_u64(&seed) & 7)
           val = val & 0xffff8000;
         correct = cubef_illegal(val);
-      }
-      while((((correct | SIGN) != SIGN) && ((correct & MASK_EXP) == 0)) || (val & MASK_EXP) == MASK_EXP);
+      } while ((((correct | SIGN) != SIGN) && ((correct & MASK_EXP) == 0)) ||
+               (val & MASK_EXP) == MASK_EXP);
       run(val);
     }
 
